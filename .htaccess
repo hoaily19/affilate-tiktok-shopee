@@ -1,0 +1,18 @@
+# Apache: URL sạch (không bắt buộc index.php) + slug favicon/logo
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /
+
+    # Trang chủ dạng slug
+    RewriteRule ^index\.php$ / [R=302,L,QSA]
+
+    # Alias tùy chọn (HTML dùng trực tiếp /icon.png, /logo.png)
+    RewriteRule ^favicon\.ico$ icon.png [L]
+    RewriteRule ^icon$ icon.png [L]
+    RewriteRule ^logo$ logo.png [L]
+
+    # Danh mục /thoi-trang → index.php?category_slug=...
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^([a-z0-9\-]+)/?$ index.php?category_slug=$1 [L,QSA]
+</IfModule>

@@ -36,7 +36,7 @@ function getAdminUserFromSession(): ?array {
 function requireAdmin(): array {
     $user = getAdminUserFromSession();
     if ($user === null) {
-        header('Location: login.php');
+        header('Location: ' . ADMIN_LOGIN_PATH);
         exit;
     }
     return $user;

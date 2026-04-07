@@ -4,11 +4,12 @@
  */
 require_once 'config/config.php';
 require_once 'db/connect.php';
+require_once __DIR__ . '/includes/functions.php';
 
 $productId = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 
 if ($productId <= 0) {
-    header('Location: index.php');
+    header('Location: ' . shop_home_url());
     exit;
 }
 
@@ -46,5 +47,5 @@ if ($conn && !$conn->connect_error) {
 }
 
 // Nếu không tìm thấy sản phẩm
-header('Location: index.php');
+header('Location: ' . shop_home_url());
 exit;

@@ -56,7 +56,7 @@ if ($conn && !$conn->connect_error) {
     <header class="admin-header">
         <div class="container">
             <div class="admin-header-content">
-                <a href="../index.php" class="logo">
+                <a href="../" class="logo">
                     <i class="fab fa-tiktok"></i>
                     <span><?php echo SITE_NAME; ?></span>
                 </a>
@@ -64,6 +64,7 @@ if ($conn && !$conn->connect_error) {
                     <a href="index.php" class="active"><i class="fas fa-home"></i> Trang chủ</a>
                     <a href="products.php"><i class="fas fa-box"></i> Sản phẩm</a>
                     <a href="add_product.php"><i class="fas fa-plus-circle"></i> Thêm sản phẩm</a>
+                    <a href="settings.php"><i class="fas fa-link"></i> Cài đặt trang</a>
                     <a href="logout.php"><i class="fas fa-sign-out-alt"></i> Đăng xuất</a>
                 </nav>
             </div>
@@ -123,7 +124,7 @@ if ($conn && !$conn->connect_error) {
                         <a href="products.php" class="btn-cancel">
                             <i class="fas fa-list"></i> Danh sách sản phẩm
                         </a>
-                        <a href="../index.php" target="_blank" rel="noopener" class="btn-outline">
+                        <a href="../" target="_blank" rel="noopener" class="btn-outline">
                             <i class="fas fa-external-link-alt"></i> Xem website
                         </a>
                     </div>

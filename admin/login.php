@@ -1,14 +1,21 @@
 <?php
 /**
  * Trang đăng nhập quản trị
+ * Chỉ cho phép khi được gọi qua /hoaily19/ (ALLOW_ADMIN_LOGIN_PAGE).
+ * Truy cập trực tiếp /admin/login.php sẽ chuyển về trang chủ.
  */
 require_once 'auth.php';
+
+if (!defined('ALLOW_ADMIN_LOGIN_PAGE') || ALLOW_ADMIN_LOGIN_PAGE !== true) {
+    header('Location: ../');
+    exit;
+}
 
 $errorMsg = '';
 
 // Đã đăng nhập admin (đã kiểm tra lại trong DB) → vào dashboard
 if (getAdminUserFromSession() !== null) {
-    header('Location: index.php');
+    header('Location: ' . ADMIN_HOME_PATH);
     exit;
 }
 
@@ -35,7 +42,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $_SESSION['username'] = $row['username'];
                 $_SESSION['user_role'] = $row['role'];
 
-                header('Location: index.php');
+                header('Location: ' . ADMIN_HOME_PATH);
                 exit;
             }
         } else {
@@ -93,18 +100,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </form>
 
             <p style="text-align: center; margin-top: 20px; color: #6c757d; font-size: 0.9rem;">
-                <a href="../index.php" style="color: var(--primary);">
+                <a href="../" style="color: var(--primary);">
                     <i class="fas fa-arrow-left"></i> Quay lại website
                 </a>
             </p>
-
-            <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; text-align: center;">
-                <p style="color: #999; font-size: 0.85rem;">
-                    <strong>Tài khoản mặc định:</strong><br>
-                    Username: <code>admin</code><br>
-                    Password: <code>admin123</code>
-                </p>
-            </div>
         </div>
     </div>
 </body>

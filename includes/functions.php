@@ -574,14 +574,16 @@ function getProducts($conn, $limit = 50, $offset = 0, $categoryId = null, $searc
     $params = [];
     $types = '';
 
-    if ($categoryId) {
-        $where .= " AND category_id = ?";
+    if ($categoryId !== null && $categoryId > 0) {
+        $where .= " AND p.category_id = ?";
         $params[] = $categoryId;
         $types .= 'i';
+    } elseif ($categoryId === -1) {
+        $where .= " AND 1=0";
     }
 
     if ($search !== '') {
-        $where .= " AND (name LIKE ? OR description LIKE ?)";
+        $where .= " AND (p.name LIKE ? OR p.description LIKE ?)";
         $searchTerm = "%$search%";
         $params[] = $searchTerm;
         $params[] = $searchTerm;
@@ -635,6 +637,174 @@ function getCategories($conn) {
 }
 
 /**
+ * Lấy id danh mục theo slug (URL /thoi-trang)
+ */
+function getCategoryIdBySlug($conn, $slug) {
+    if ($slug === '' || !$conn || $conn->connect_error) {
+        return null;
+    }
+    $stmt = $conn->prepare('SELECT id FROM categories WHERE slug = ? LIMIT 1');
+    if (!$stmt) {
+        return null;
+    }
+    $stmt->bind_param('s', $slug);
+    $stmt->execute();
+    $row = $stmt->get_result()->fetch_assoc();
+    return $row ? (int) $row['id'] : null;
+}
+
+/**
+ * Các segment path không coi là slug danh mục (trùng router + file PHP)
+ *
+ * @return list<string>
+ */
+function shop_reserved_path_segments(): array {
+    return [
+        'admin', 'assets', 'db', 'config', 'includes', 'install', 'hoaily19',
+        'buy', 'icon', 'logo', 'index.php', 'buy.php', 'router.php',
+    ];
+}
+
+/**
+ * Slug danh mục từ ?category_slug= hoặc từ path /thoi-trang (Apache/nginx đôi khi không truyền GET).
+ */
+function shop_category_slug_from_request(): string {
+    $fromGet = isset($_GET['category_slug']) ? trim((string) $_GET['category_slug']) : '';
+    if ($fromGet !== '' && preg_match('/^[a-z0-9\-_]+$/i', $fromGet)) {
+        return $fromGet;
+    }
+
+    $raw = $_SERVER['REQUEST_URI'] ?? '';
+    $path = parse_url($raw, PHP_URL_PATH);
+    if (!is_string($path) || $path === '') {
+        return '';
+    }
+    $path = '/' . trim(str_replace('\\', '/', $path), '/');
+    if ($path === '/') {
+        return '';
+    }
+
+    $base = shop_base_path();
+    if ($base !== '' && strpos($path, $base) === 0) {
+        $path = substr($path, strlen($base));
+        $path = '/' . trim($path, '/');
+        if ($path === '/') {
+            return '';
+        }
+    }
+
+    if (!preg_match('#^/([a-z0-9][a-z0-9\-_]*)/?$#i', $path, $m)) {
+        return '';
+    }
+    $seg = $m[1];
+    if (strpos($seg, '.') !== false) {
+        return '';
+    }
+    $reserved = array_map('strtolower', shop_reserved_path_segments());
+    if (in_array(strtolower($seg), $reserved, true)) {
+        return '';
+    }
+
+    return $seg;
+}
+
+/**
+ * URL tài nguyên từ gốc site (tránh /danh-mục/assets/... khi URL có slug).
+ */
+function shop_asset_url(string $rel): string {
+    $rel = ltrim(str_replace('\\', '/', $rel), '/');
+    $b = shop_base_path();
+    if ($b === '') {
+        return '/' . $rel;
+    }
+    return rtrim($b, '/') . '/' . $rel;
+}
+
+/**
+ * Bảng cài đặt site (link TikTok / Shopee trên hero). Gọi một lần mỗi request (static).
+ */
+function ensureSiteSettingsTable($conn) {
+    static $ensured = false;
+    if ($ensured || !$conn || $conn->connect_error) {
+        return false;
+    }
+    $ensured = true;
+    $conn->query("CREATE TABLE IF NOT EXISTS site_settings (
+        setting_key VARCHAR(64) NOT NULL PRIMARY KEY,
+        setting_value TEXT NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+    $conn->query("INSERT IGNORE INTO site_settings (setting_key, setting_value) VALUES
+        ('tiktok_channel_url', ''),
+        ('shopee_store_url', '')");
+    return true;
+}
+
+/**
+ * @param mysqli $conn
+ */
+function getSiteSetting($conn, $key, $default = '') {
+    if (!$conn || $conn->connect_error) {
+        return $default;
+    }
+    ensureSiteSettingsTable($conn);
+    $stmt = $conn->prepare('SELECT setting_value FROM site_settings WHERE setting_key = ? LIMIT 1');
+    if (!$stmt) {
+        return $default;
+    }
+    $stmt->bind_param('s', $key);
+    $stmt->execute();
+    $row = $stmt->get_result()->fetch_assoc();
+    return ($row && isset($row['setting_value'])) ? (string) $row['setting_value'] : $default;
+}
+
+/**
+ * @param mysqli $conn
+ */
+function setSiteSetting($conn, $key, $value) {
+    if (!$conn || $conn->connect_error) {
+        return false;
+    }
+    ensureSiteSettingsTable($conn);
+    $sql = 'INSERT INTO site_settings (setting_key, setting_value) VALUES (?, ?)
+            ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)';
+    $stmt = $conn->prepare($sql);
+    if (!$stmt) {
+        return false;
+    }
+    $stmt->bind_param('ss', $key, $value);
+    return $stmt->execute();
+}
+
+/** Chuẩn hóa URL lưu cài đặt; rỗng hoặc không hợp lệ → '' */
+function sanitizeStoreUrl($raw) {
+    $raw = trim((string) $raw);
+    if ($raw === '') {
+        return '';
+    }
+    $u = normalizeUrl($raw);
+    if (!filter_var($u, FILTER_VALIDATE_URL)) {
+        return '';
+    }
+    return $u;
+}
+
+/**
+ * Link hiển thị 2 nút hero
+ *
+ * @return array{tiktok: string, shopee: string}
+ */
+function getHeroChannelUrls($conn) {
+    $tik = '';
+    $shopee = '';
+    if ($conn && !$conn->connect_error) {
+        ensureSiteSettingsTable($conn);
+        $tik = sanitizeStoreUrl(getSiteSetting($conn, 'tiktok_channel_url', ''));
+        $shopee = sanitizeStoreUrl(getSiteSetting($conn, 'shopee_store_url', ''));
+    }
+    return ['tiktok' => $tik, 'shopee' => $shopee];
+}
+
+/**
  * Format giá tiền
  */
 function formatPrice($price) {
@@ -642,19 +812,111 @@ function formatPrice($price) {
 }
 
 /**
- * Query string phân trang trang chủ (giữ category, search; page chỉ thêm khi > 1)
+ * Phần path gốc của shop (slug, không có index.php)
+ */
+function shop_base_path(): string {
+    if (!defined('SHOP_BASE_PATH')) {
+        return '';
+    }
+    $p = trim((string) SHOP_BASE_PATH, " \t\n\r\0\x0B/");
+    return $p === '' ? '' : '/' . $p;
+}
+
+/** URL trang chủ: / hoặc /subdir/ */
+function shop_home_url(): string {
+    $b = shop_base_path();
+    return $b === '' ? '/' : $b . '/';
+}
+
+/**
+ * URL shop có query (?category=…), không dùng index.php
  *
- * @param array<string, scalar> $extra category_id, search, ...
+ * @param array<string, scalar> $queryParams
+ */
+function shop_build_url(array $queryParams): string {
+    if ($queryParams === []) {
+        return shop_home_url();
+    }
+    $h = shop_home_url();
+    if ($h === '/') {
+        return '/?' . http_build_query($queryParams);
+    }
+    return rtrim($h, '/') . '?' . http_build_query($queryParams);
+}
+
+/**
+ * URL danh mục dạng /{slug} (có thể thêm ?search=&page=)
+ *
+ * @param array<string, scalar> $queryParams
+ */
+function shop_category_path_url(string $slug, array $queryParams = []): string {
+    $slug = preg_replace('/[^a-zA-Z0-9\-_]/', '', $slug);
+    if ($slug === '') {
+        return shop_build_url($queryParams);
+    }
+    $bp = shop_base_path();
+    $path = ($bp === '' ? '' : $bp) . '/' . rawurlencode($slug);
+    if ($path === '' || $path[0] !== '/') {
+        $path = '/' . ltrim($path, '/');
+    }
+    if ($queryParams === []) {
+        return $path;
+    }
+    return $path . '?' . http_build_query($queryParams);
+}
+
+/** Favicon: file icon.png (gốc site, luôn đúng path dù URL đang /danh-mục) */
+function shop_favicon_url(): string {
+    $b = shop_base_path();
+    return $b === '' ? '/icon.png' : rtrim($b, '/') . '/icon.png';
+}
+
+/** URL favicon tuyệt đối (một số trình duyệt / tab cần origin đầy đủ) */
+function shop_favicon_absolute_url(): string {
+    $path = shop_favicon_url();
+    if (!defined('SITE_URL') || SITE_URL === '') {
+        return $path;
+    }
+    return rtrim((string) SITE_URL, '/') . $path;
+}
+
+/** Query ?v=mtime để ép tải lại icon sau khi đổi file */
+function shop_favicon_cache_buster(): string {
+    $icon = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'icon.png';
+    $logo = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'logo.png';
+    if (!is_file($icon)) {
+        $icon = $logo;
+    }
+    if (is_file($icon)) {
+        return (string) @filemtime($icon);
+    }
+    return '1';
+}
+
+/** Logo header / menu: file logo.png */
+function shop_logo_url(): string {
+    $b = shop_base_path();
+    return $b === '' ? '/logo.png' : rtrim($b, '/') . '/logo.png';
+}
+
+/**
+ * URL phân trang (slug danh mục /thoi-trang?search=&page= hoặc /?…)
+ *
+ * @param array<string, scalar> $extra category_slug, search, ...
  */
 function shopPagerHref(array $extra, int $pageNum): string {
-    $q = $extra;
+    $q = [];
+    if (!empty($extra['search'])) {
+        $q['search'] = $extra['search'];
+    }
     if ($pageNum > 1) {
         $q['page'] = $pageNum;
     }
-    if ($q === []) {
-        return 'index.php';
+    $slug = isset($extra['category_slug']) ? trim((string) $extra['category_slug']) : '';
+    if ($slug !== '') {
+        return shop_category_path_url($slug, $q);
     }
-    return '?' . http_build_query($q);
+    return shop_build_url($q);
 }
 
 /**

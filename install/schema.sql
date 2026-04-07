@@ -81,3 +81,13 @@ CREATE TABLE IF NOT EXISTS users (
 -- Tài khoản admin mặc định (password: admin123)
 INSERT IGNORE INTO users (id, username, email, password, role) VALUES
 (1, 'admin', NULL, '$2y$10$8K1p/a0dL1LXMIgoEDFrwOfMQbLgT4rM4C8Xq7VXrRp9OQv3kXCWq', 'admin');
+
+-- Cài đặt trang (link TikTok / Shopee trên hero)
+CREATE TABLE IF NOT EXISTS site_settings (
+    setting_key VARCHAR(64) NOT NULL PRIMARY KEY,
+    setting_value TEXT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT IGNORE INTO site_settings (setting_key, setting_value) VALUES
+('tiktok_channel_url', ''),
+('shopee_store_url', '');
