@@ -45,6 +45,8 @@ if ($conn && !$conn->connect_error) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard - <?php echo SITE_NAME; ?></title>
+    <link rel="icon" href="../icon.png" type="image/png">
+    <link rel="apple-touch-icon" href="../icon.png">
     <link rel="stylesheet" href="../assets/css/admin.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -57,7 +59,7 @@ if ($conn && !$conn->connect_error) {
         <div class="container">
             <div class="admin-header-content">
                 <a href="../" class="logo">
-                    <i class="fab fa-tiktok"></i>
+                    <img src="../logo.png" alt="" class="admin-logo-img" width="38" height="38">
                     <span><?php echo SITE_NAME; ?></span>
                 </a>
                 <nav class="admin-nav">

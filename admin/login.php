@@ -57,6 +57,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Đăng nhập - <?php echo SITE_NAME; ?></title>
+    <link rel="icon" href="../icon.png" type="image/png">
+    <link rel="apple-touch-icon" href="../icon.png">
     <link rel="stylesheet" href="../assets/css/admin.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -67,7 +69,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <div class="login-container">
         <div class="login-card">
             <div class="logo">
-                <i class="fab fa-tiktok" style="color: var(--primary); font-size: 3rem;"></i>
+                <img src="../logo.png" alt="" class="admin-logo-img" width="64" height="64">
             </div>
             <h1><?php echo SITE_NAME; ?></h1>
 
@@ -99,8 +101,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 </button>
             </form>
 
-            <p style="text-align: center; margin-top: 20px; color: #6c757d; font-size: 0.9rem;">
-                <a href="../" style="color: var(--primary);">
+            <p class="login-back">
+                <a href="../">
                     <i class="fas fa-arrow-left"></i> Quay lại website
                 </a>
             </p>
